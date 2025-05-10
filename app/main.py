@@ -1,59 +1,17 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
 from pydantic import BaseModel
 from random import randrange
 import psycopg  # this is used to connect the code with the database
-# from psycopg2.extras import RealDictCursor  # has something to do with the rows?
 import time
 from sqlalchemy.orm import Session
-from . import models, schemas  # current folder
-#  from .schemas import Post  # no need for this anymore
+from . import models, schemas
 from .database import engine, get_db
 
 
 models.Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
-
-
-# while True:  # I don't see the point of keeping trying
-try:
-    conn = psycopg.connect(host='localhost', dbname='fastapi', user='postgres', password='1126')
-    cursor = conn.cursor()
-    print("database connected")
-    # break
-except Exception as error:
-    print("Error: ", error)
-    # time.sleep(2)  # sleep for 2 seconds
-
-my_posts = []
-
-def find_posts(id):
-    for p in my_posts:
-        if p['id'] == id:
-            return p
-        
-def find_index_post(id):
-    for i, p in enumerate(my_posts):
-        if p['id'] == id:
-            return i
-    return -1
-
-def rows_to_dict_list(cursor, rows):  
-    # by default postgres doesn't output col names 
-    # this is a solution
-    column_names = [desc[0] for desc in cursor.description]
-    return [dict(zip(column_names, row)) for row in rows]
-
-def row_to_dict(cursor, row):
-    # used when there is only one row
-    if not row:  # when the post is not fonud
-        return None
-    column_names = [desc[0] for desc in cursor.description]
-    return dict(zip(column_names, row))
-
-# order matters and when API request is sent the below functions are checked in order
 
 # path operation (route)
 @app.get("/")  # decorator for functions
@@ -61,24 +19,23 @@ async def root():
     return {"message": "Hello"}
 
 
-@app.get("/posts")
+@app.get("/posts", response_model=List[schemas.Post])
 def get_posts(db: Session = Depends(get_db)):
     posts = db.query(models.Post).all()
     return posts
 
 
-@app.post("/posts", status_code=status.HTTP_201_CREATED)
+@app.post("/posts", status_code=status.HTTP_201_CREATED, response_model=schemas.Post)
 def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
-    print(f"Received post data: {post.model_dump()}")  # Debug print
     new_post = models.Post(**post.model_dump())
-    print(f"Created new post object: {vars(new_post)}")  # Debug print
+    # new_post = models.Post(title=post.title, content=post.content, published=post.published)
     db.add(new_post)
     db.commit()
-    db.refresh(new_post)  
+    db.refresh(new_post)  # retrieve the data to the variable?
     return new_post
 
 
-@app.get("/posts/{id}")
+@app.get("/posts/{id}", response_model=schemas.Post)
 def get_post(id: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == id).first()  # find the first instance that's a match
     if not post:
@@ -94,8 +51,8 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@app.put("/posts/{id}")
-def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
+@app.put("/posts/{id}", response_model=schemas.Post)
+def delete_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
     post_query = db.query(models.Post).filter(models.Post.id == id)
     if post_query.first() == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"id {id} doesn't exist")
