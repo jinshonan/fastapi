@@ -1,5 +1,5 @@
 # Backend API
-python, fastapi, Postgres
+python, fastapi, Postgres, sqlalchemy(ORM)
 
 ユーザーがテキスト内容をアップロードできるソーシャルメディアソフト
 
