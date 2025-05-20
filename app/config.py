@@ -11,7 +11,7 @@ class Settings(BaseSettings):  # environment variables
     algorithm: str
     access_token_expire_minutes: int
 
-    class Config:
+    class Config:  # import things from the .env file where the variables are 
         env_file = ".env"
 
 
